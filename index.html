@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Google Calendar API Quickstart</title>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <p>Ripple Scheduling with Google Calendar API Prototype</p>
+
+    <!--Add buttons to initiate auth sequence and sign out-->
+    <button id="authorize_button" style="display: none;">Authorize</button>
+    <button id="signout_button" style="display: none;">Sign Out</button>
+
+    <pre id="content" style="white-space: pre-wrap;"></pre>
+
+    <script type="text/javascript">
+      // Client ID and API key from the Developer Console
+      var CLIENT_ID = '166028931038-sovhn4oc9vlq7ma2adcg0lv9khj904d4.apps.googleusercontent.com';
+      var API_KEY = 'AIzaSyCKSynkrgSIBn-FjyjuoVNOu_UIeroDku8';
+
+      // Array of API discovery doc URLs for APIs used by the quickstart
+      var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+
+      // Authorization scopes required by the API; multiple scopes can be
+      // included, separated by spaces.
+      //var SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+      var SCOPES = "https://www.googleapis.com/auth/calendar";
+
+
+      var authorizeButton = document.getElementById('authorize_button');
+      var signoutButton = document.getElementById('signout_button');
+
+      /**
+       *  On load, called to load the auth2 library and API client library.
+       */
+      function handleClientLoad() {
+        gapi.load('client:auth2', initClient);
+      }
+
+      /**
+       *  Initializes the API client library and sets up sign-in state
+       *  listeners.
+       */
+      function initClient() {
+        gapi.client.init({
+          apiKey: API_KEY,
+          clientId: CLIENT_ID,
+          discoveryDocs: DISCOVERY_DOCS,
+          scope: SCOPES
+        }).then(function () {
+          // Listen for sign-in state changes.
+          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+          // Handle the initial sign-in state.
+          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+          authorizeButton.onclick = handleAuthClick;
+          signoutButton.onclick = handleSignoutClick;
+        }, function(error) {
+          appendPre(JSON.stringify(error, null, 2));
+        });
+      }
+
+      /**
+       *  Called when the signed in status changes, to update the UI
+       *  appropriately. After a sign-in, the API is called.
+       */
+      function updateSigninStatus(isSignedIn) {
+        if (isSignedIn) {
+          authorizeButton.style.display = 'none';
+          signoutButton.style.display = 'block';
+
+          listCalendars();
+          listUpcomingEvents();
+        } else {
+          authorizeButton.style.display = 'block';
+          signoutButton.style.display = 'none';
+        }
+      }
+
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+      }
+
+      /**
+       *  Sign out the user upon button click.
+       */
+      function handleSignoutClick(event) {
+        console.log('b4 signout');
+        gapi.auth2.getAuthInstance().signOut();
+        console.log('after signout');
+      }
+
+      /**
+       * Append a pre element to the body containing the given message
+       * as its text node. Used to display the results of the API call.
+       *
+       * @param {string} message Text to be placed in pre element.
+       */
+      function appendPre(message) {
+        var pre = document.getElementById('content');
+        var textContent = document.createTextNode(message + '\n');
+        pre.appendChild(textContent);
+      }
+
+
+       function listCalendars() {
+        appendPre('All calendars:');
+     
+        var request = gapi.client.calendar.calendarList.list();
+
+        request.execute(function(resp){
+            var  calendars = resp.items;
+            //appendPre(calendars);
+            //console.log(calendars);
+
+            if (calendars.length > 0) {
+            for (i = 0; i < calendars.length; i++) {
+              var cal = calendars[i];
+              //console.log("calendars i " + i);
+              //appendPre(cal.summary);
+                listUpcomingEvents(cal);
+            }
+          } else {
+            appendPre('No calendards found.');
+          }
+          
+         // handleSignoutClick(null);
+         // handleAuthClick(null);
+
+
+        });
+     
+       }
+
+
+      /**
+       * Print the summary and start datetime/date of the next ten events in
+       * the authorized user's calendar. If no events are found an
+       * appropriate message is printed.
+       */
+      function listUpcomingEvents(cal) {
+        gapi.client.calendar.events.list({
+         'calendarId': cal.id,
+         // 'calendarId': 'primary',
+          'timeMin': (new Date()).toISOString(),
+          'showDeleted': false,
+          'singleEvents': true,
+          'maxResults': 10,
+          'orderBy': 'startTime'
+        }).then(function(response) {
+          var events = response.result.items;
+          appendPre('Upcoming events for: ' + cal.summary );
+          console.log('cal =', cal);
+          console.log('events =', events);
+
+          if (events.length > 0) {
+            for (i = 0; i < events.length; i++) {
+              var event = events[i];
+              var when = event.start.dateTime;
+              if (!when) {
+                when = event.start.date;
+              }
+              appendPre(event.summary + ' (' + when + ')')
+            }
+          } else {
+            appendPre('No upcoming events found.');
+          }
+        appendPre('     ');
+        });
+
+      }
+
+    </script>
+
+    <script async defer src="https://apis.google.com/js/api.js"
+      onload="this.onload=function(){};handleClientLoad()"
+      onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+
+    <iframe src="https://calendar.google.com/calendar/selfsched?sstoken=UU90RkctY0lsa2c2fGRlZmF1bHR8ZmRhNDRjZmZkNjIxYTE0NjRkNzU5NzVjMWNmMjY2MDk”>
+    </iframe>
+
+    <iframe src="https://sites.google.com/ripplescience.com/calendartest/home” style="border: 0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+
+
+     <!-- copied from CUSTOMIZE button copies ALL my callendars and color codes
+      
+       <iframe src="https://calendar.google.com/calendar/embed?height=600&amp;wkst=1&amp;bgcolor=%23039BE5&amp;ctz=America%2FDetroit&amp;src=dDFkc3R1ZHlAcmlwcGxlc2NpZW5jZS5jb20&amp;src=cmlwcGxlc2NpZW5jZS5jb21fNTVtMDRrdnFodTgwbHVnaTV2bmE5djdzNTBAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&amp;src=cmlwcGxlc2NpZW5jZS5jb21fdmZkbWR0cWpycXJhZmpicmQ4OWJ2aXFlOXNAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ&amp;color=%23039BE5&amp;color=%23C0CA33&amp;color=%238E24AA" style="border-width:0" width="800" height="600" frameborder="0" scrolling="no"></iframe>
+
+        -->
+
+    
+  </body>
+</html>
